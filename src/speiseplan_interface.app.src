@@ -1,0 +1,12 @@
+{application, speiseplan_interface,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { speiseplan_interface_app, []}},
+  {env, []}
+ ]}.
