@@ -67,13 +67,13 @@ init([]) ->
 %% --------------------------------------------------------------------
 handle_call({get_eater, Year}, From, State) ->
     Menus = get_menus_for_year(Year),
-    {Intern, Extern} = analyse_menus(year, Menus, array:new(12, {default,0}), array:new(12, {default,0})),
-    {reply, {Year, [{intern, Intern}, {extern, Extern}]}, State};
+    {Intern, Extern, Ausgegeben} = analyse_menus(year, Menus, array:new(12, {default,0}), array:new(12, {default,0}), array:new(12, {default,0})),
+    {reply, {Year, [{intern, Intern}, {extern, Extern}, {ausgegeben, Ausgegeben}]}, State};
 
 handle_call({get_eater, Year, Month}, From, State) ->
     Menus = get_menus_for_month(Year, Month),
-    {Intern, Extern} = analyse_menus(month, Menus, 0, 0),
-    {reply, {Year, Month, [{intern, Intern}, {extern, Extern}]}, State};
+    {Intern, Extern, Ausgegeben} = analyse_menus(month, Menus, 0, 0, 0),
+    {reply, {Year, Month, [{intern, Intern}, {extern, Extern}, {ausgegeben, Ausgegeben}]}, State};
 
 handle_call(Request, From, State) ->
     Reply = ok,
@@ -129,18 +129,18 @@ get_menus_for_month(Year, Month) when is_list(Year) ->
 get_menus_for_month(Year, Month) -> 
     boss_db:find(menu, [{date, 'ge', {{Year, Month,1}, {0,0,0}}}, {date, 'le', {{Year, Month, calendar:last_day_of_the_month(Year, Month)}, {0,0,0}}}]).
 
-analyse_menus(month,[], Intern, Extern) ->
-    {Intern, Extern};   
-analyse_menus(month, [H|T], Intern, Extern) ->
+analyse_menus(month,[], Intern, Extern, Ausgegeben) ->
+    {Intern, Extern, Ausgegeben};   
+analyse_menus(month, [H|T], Intern, Extern, Ausgegeben) ->
     {Int_count, Ext_count} = count_bookings(H:booking()),
-    analyse_menus(month,T, Int_count + Intern, Ext_count + Extern);
+    analyse_menus(month,T, Int_count + Intern, Ext_count + Extern, list_to_integer(H:count_given()) + Ausgegeben);
 
-analyse_menus(year,[], Intern, Extern) ->
-    {list_of_integer_to_string(array:to_list(Intern)), list_of_integer_to_string(array:to_list(Extern))};   
-analyse_menus(year, [H|T], Intern, Extern) ->
+analyse_menus(year,[], Intern, Extern, Ausgegeben) ->
+    {list_of_integer_to_string(array:to_list(Intern)), list_of_integer_to_string(array:to_list(Extern)), list_of_integer_to_string(array:to_list(Ausgegeben))};   
+analyse_menus(year, [H|T], Intern, Extern, Ausgegeben) ->
     {{_Y, Month, _D}, _Time} = H:date(),
     {Int_count, Ext_count} = count_bookings(H:booking()),
-    analyse_menus(year,T, add(Month, Int_count, Intern), add(Month, Ext_count, Extern)).
+    analyse_menus(year,T, add(Month, Int_count, Intern), add(Month, Ext_count, Extern), add(Month, list_to_integer(H:count_given()), Ausgegeben)).
 
 count_bookings(Bookings) ->
     count_bookings(Bookings, 0, 0). 
@@ -153,7 +153,7 @@ count_bookings([H|T], Intern, Extern) ->
         false ->count_bookings(T, Intern, Extern + 1)
     end.    
 
-add(Month, Value, Array) ->
+add(Month, Value, Array) ->    
     Index = Month - 1,
     Act_value = array:get(Index, Array),
     array:set(Index, Act_value + Value, Array).
